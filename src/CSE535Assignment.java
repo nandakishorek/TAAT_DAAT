@@ -93,62 +93,32 @@ public class CSE535Assignment {
                     }
 
                     List<Term> queryTermList = new ArrayList<Term>(queryTerms.length);
-
-                    // termAtATimeQueryAnd
-                    bw.write("termAtATimeQueryAnd");
                     for (String queryTerm : queryTerms) {
-                        i = 0;
-                        bw.write(" " + queryTerm);
-                        if (i != queryTerms.length - 1) {
-                            bw.write(",");
-                        }
-                        ++i;
-
                         queryTermList.add(new Term(queryTerm, 0));
                     }
-                    bw.write(lineSeparator);
 
+                    String commaSepQueryTerms = toCommaSeparatedString(queryTerms);
+
+                    // termAtATimeQueryAnd
+                    bw.write("termAtATimeQueryAnd " + commaSepQueryTerms + lineSeparator);
                     QueryResult queryResult = tfOrderedIndex.termAtATimeQueryAnd(queryTermList);
-                    bw.write(queryResult.getDocIds().size() + " documents are found" + lineSeparator); // TODO: check null
-                    bw.write(queryResult.getNumOfComparisons() + " comparisons are made" + lineSeparator);
-                    bw.write(queryResult.getRunTime() + " seconds are used" + lineSeparator);
-                    bw.write("Result " + queryResult.getDocIds() + lineSeparator);
+                    printQueryResult(queryResult, bw);
 
                     // termAtATimeQueryOr
-                    bw.write("termAtATimeQueryOr");
-                    i = 0;
-                    for (String queryTerm : queryTerms) {
-                        bw.write(" " + queryTerm);
-                        if (i != queryTerms.length - 1) {
-                            bw.write(",");
-                        }
-                        ++i;
-                    }
-                    bw.write(lineSeparator);
+                    bw.write("termAtATimeQueryOr" + commaSepQueryTerms + lineSeparator);
+                    queryResult = tfOrderedIndex.termAtATimeQueryOr(queryTermList);
+                    printQueryResult(queryResult, bw);
 
                     // docAtATimeQueryAnd
-                    bw.write("docAtATimeQueryAnd");
-                    i = 0;
-                    for (String queryTerm : queryTerms) {
-                        bw.write(" " + queryTerm);
-                        if (i != queryTerms.length - 1) {
-                            bw.write(",");
-                        }
-                        ++i;
-                    }
-                    bw.write(lineSeparator);
+                    bw.write("docAtATimeQueryAnd" + commaSepQueryTerms + lineSeparator);
+                    queryResult = docIdOrderedIndex.docAtATimeQueryAnd(queryTermList);
+                    printQueryResult(queryResult, bw);
 
                     // docAtATimeQueryOr
-                    bw.write("docAtATimeQueryOr");
-                    i = 0;
-                    for (String queryTerm : queryTerms) {
-                        bw.write(" " + queryTerm);
-                        if (i != queryTerms.length - 1) {
-                            bw.write(",");
-                        }
-                        ++i;
-                    }
-                    bw.write(lineSeparator);
+                    bw.write("docAtATimeQueryOr" + commaSepQueryTerms + lineSeparator);
+                    queryResult = docIdOrderedIndex.docAtATimeQueryOr(queryTermList);
+                    printQueryResult(queryResult, bw);
+
                 }
             } catch (IOException ioe) {
                 System.err.println("Error while reading the query file");
@@ -160,6 +130,38 @@ public class CSE535Assignment {
         }
     }
 
+    public static void printQueryResult(QueryResult queryResult, BufferedWriter bw) throws IOException {
+        String lineSeparator = System.lineSeparator();
+        if (queryResult.getDocIds().size() <= 0) {
+            // none of the terms were found
+            bw.write("terms not found" + lineSeparator);
+        } else {
+            bw.write(queryResult.getDocIds().size() + " documents are found" + lineSeparator);
+            bw.write(queryResult.getNumOfComparisons() + " comparisons are made" + lineSeparator);
+            bw.write(queryResult.getRunTime() + " seconds are used" + lineSeparator);
+
+            Collections.sort(queryResult.getDocIds());
+            String[] docIds = new String[queryResult.getDocIds().size()];
+            for (int i = 0; i < docIds.length; ++i) {
+                docIds[i] = queryResult.getDocIds().get(i).toString();
+            }
+
+            bw.write("Result " + toCommaSeparatedString(docIds) + lineSeparator);
+        }
+    }
+
+    public static String toCommaSeparatedString(String[] strArray) {
+        StringBuilder sb = new StringBuilder();
+        int i = 0;
+        for (String str : strArray) {
+            sb.append(str);
+            if (i != strArray.length - 1) {
+                sb.append(", ");
+            }
+            ++i;
+        }
+        return sb.toString();
+    }
 }
 
 class Posting {
@@ -177,6 +179,22 @@ class Posting {
 
     public int getTermFreq() {
         return termFreq;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        Posting otherPosting = (Posting) obj;
+        if (otherPosting != null) {
+            if (this.id == otherPosting.id) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        return this.id;
     }
 }
 
@@ -223,6 +241,7 @@ class QueryResult {
     public QueryResult() {
         this.numOfComparisons = 0;
         this.runTime = 0L;
+        this.docIds = new ArrayList<Integer>();
     }
 
     public QueryResult(int numOfComparisons, long runTime, List<Integer> docIds) {
@@ -294,17 +313,17 @@ class DocIdOrderedIndex implements Index {
                 String[] postings = pListString.split(", ");
                 for (String posting : postings) {
                     String[] vals = posting.split("/");
-                    
+
                     int docId = Integer.parseInt(vals[0]);
                     int tf = Integer.parseInt(vals[1]);
                     Posting p = new Posting(docId, tf);
-                    
-                    // increasing order of docIds
+
+                    // add according to increasing order of docIds
                     if (pList.isEmpty()) {
                         pList.add(p);
                     } else {
                         int i = 0;
-                        while(i< pList.size() && pList.get(i).getId() < docId) {
+                        while (i < pList.size() && pList.get(i).getId() < docId) {
                             ++i;
                         }
                         pList.add(i, p);
@@ -409,13 +428,13 @@ class TermFreqOrderedIndex implements Index {
                     int docId = Integer.parseInt(vals[0]);
                     int tf = Integer.parseInt(vals[1]);
                     Posting p = new Posting(docId, tf);
-                    
-                    // decreasing order of term frequencies
+
+                    // add according to decreasing order of term frequencies
                     if (pList.isEmpty()) {
                         pList.add(p);
                     } else {
                         int i = 0;
-                        while(i< pList.size() && pList.get(i).getTermFreq() > tf) {
+                        while (i < pList.size() && pList.get(i).getTermFreq() >= tf) {
                             ++i;
                         }
                         pList.add(i, p);
@@ -445,11 +464,12 @@ class TermFreqOrderedIndex implements Index {
 
     @Override
     public QueryResult termAtATimeQueryAnd(List<Term> queryTerms) {
-        
+
         Long startTime = System.currentTimeMillis();
-        
+
         QueryResult qr = new QueryResult();
 
+        boolean termNotFound = false;
         List<List<Posting>> allPostings = new ArrayList<List<Posting>>(queryTerms.size());
         for (Term t : queryTerms) {
             List<Posting> postingForT = idx.get(t);
@@ -457,60 +477,60 @@ class TermFreqOrderedIndex implements Index {
                 allPostings.add(postingForT);
             } else {
                 // one of the terms was not found. So return an empty result.
-                Long endTime = System.currentTimeMillis();
-                qr.setRunTime((endTime - startTime) / 1000L);
-                return qr;
+                termNotFound = true;
             }
         }
 
-        // sort the postings list in increasing order of their sizes
-        Collections.sort(allPostings, new Comparator<List<Posting>>() {
+        if (!termNotFound) {
+            // sort the postings list in increasing order of their sizes
+            Collections.sort(allPostings, new Comparator<List<Posting>>() {
 
-            @Override
-            public int compare(List<Posting> l1, List<Posting> l2) {
-                int len1 = l1.size();
-                int len2 = l2.size();
-                if (len1 < len2) {
-                    return -1;
-                } else if (len1 > len2) {
-                    return 1;
+                @Override
+                public int compare(List<Posting> l1, List<Posting> l2) {
+                    int len1 = l1.size();
+                    int len2 = l2.size();
+                    if (len1 < len2) {
+                        return -1;
+                    } else if (len1 > len2) {
+                        return 1;
+                    }
+                    return 0;
                 }
-                return 0;
-            }
 
-        });
-        
-        int numOfComparisons = 0;
-        List<Posting> result = allPostings.get(0); // assign result to first posting list
-        for (int i = 1; i< allPostings.size(); ++i) {
-            Iterator<Posting> resultIter = result.iterator(); // iterate on the result
-            List<Posting> p2 = allPostings.get(i); // next postings list
-            while(resultIter.hasNext()) {
-                // check if the current docid is present in p2
-                Posting po = resultIter.next();
-                int j;
-                for (j = 0; j< p2.size(); ++j) {
-                    if (p2.get(j).equals(po)) {
-                        ++numOfComparisons;
-                        break;
+            });
+
+            int numOfComparisons = 0;
+            List<Posting> result = allPostings.get(0); // assign result to first
+                                                       // posting list
+            for (int i = 1; i < allPostings.size(); ++i) {
+                Iterator<Posting> resultIter = result.iterator(); // iterate on
+                                                                  // the
+                                                                  // result
+                List<Posting> p2 = allPostings.get(i); // next postings list
+                while (resultIter.hasNext()) {
+                    // check if the current docid is present in p2
+                    Posting po = resultIter.next();
+                    int j;
+                    for (j = 0; j < p2.size(); ++j) {
+                        if (p2.get(j).equals(po)) {
+                            ++numOfComparisons;
+                            break;
+                        }
+                    }
+                    if (j == p2.size()) {
+                        // we did not find this doc
+                        resultIter.remove();
                     }
                 }
-                if (j == p2.size()) {
-                    // we did not find this doc
-                    resultIter.remove();
-                }
             }
+
+            List<Integer> docIds = qr.getDocIds();
+            for (Posting p : result) {
+                docIds.add(p.getId());
+            }
+
+            qr.setNumOfComparisons(numOfComparisons);
         }
-        
-        List<Integer> docIds = new ArrayList<Integer>(result.size());
-        for (Posting p : result) {
-            docIds.add(p.getId());
-        }
-        
-        qr.setNumOfComparisons(numOfComparisons);
-        qr.setDocIds(docIds);
-        qr.setDocIds(docIds);
-        
         Long endTime = System.currentTimeMillis();
         qr.setRunTime((endTime - startTime) / 1000L);
 
