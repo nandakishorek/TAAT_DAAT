@@ -9,6 +9,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -105,17 +106,17 @@ public class CSE535Assignment {
                     printQueryResult(queryResult, bw);
 
                     // termAtATimeQueryOr
-                    bw.write("termAtATimeQueryOr" + commaSepQueryTerms + lineSeparator);
+                    bw.write("termAtATimeQueryOr " + commaSepQueryTerms + lineSeparator);
                     queryResult = tfOrderedIndex.termAtATimeQueryOr(queryTermList);
                     printQueryResult(queryResult, bw);
 
                     // docAtATimeQueryAnd
-                    bw.write("docAtATimeQueryAnd" + commaSepQueryTerms + lineSeparator);
+                    bw.write("docAtATimeQueryAnd " + commaSepQueryTerms + lineSeparator);
                     queryResult = docIdOrderedIndex.docAtATimeQueryAnd(queryTermList);
                     printQueryResult(queryResult, bw);
 
                     // docAtATimeQueryOr
-                    bw.write("docAtATimeQueryOr" + commaSepQueryTerms + lineSeparator);
+                    bw.write("docAtATimeQueryOr " + commaSepQueryTerms + lineSeparator);
                     queryResult = docIdOrderedIndex.docAtATimeQueryOr(queryTermList);
                     printQueryResult(queryResult, bw);
 
@@ -500,7 +501,8 @@ class TermFreqOrderedIndex implements Index {
             });
 
             int numOfComparisons = 0;
-            List<Posting> result = allPostings.get(0); // assign result to first
+            List<Posting> result = new LinkedList<Posting>();
+            result.addAll(allPostings.get(0)); // assign result to first
                                                        // posting list
             for (int i = 1; i < allPostings.size(); ++i) {
                 Iterator<Posting> resultIter = result.iterator(); // iterate on
@@ -512,8 +514,8 @@ class TermFreqOrderedIndex implements Index {
                     Posting po = resultIter.next();
                     int j;
                     for (j = 0; j < p2.size(); ++j) {
+                        ++numOfComparisons;
                         if (p2.get(j).equals(po)) {
-                            ++numOfComparisons;
                             break;
                         }
                     }
@@ -539,7 +541,41 @@ class TermFreqOrderedIndex implements Index {
 
     @Override
     public QueryResult termAtATimeQueryOr(List<Term> queryTerms) {
+
+        Long startTime = System.currentTimeMillis();
+
         QueryResult qr = new QueryResult();
+
+        int numOfComparisons = 0;
+        List<Posting> result = idx.get(queryTerms.get(0)); // assign result to
+                                                           // first posting list
+        for (int i = 1; i < queryTerms.size(); ++i) {
+            List<Posting> postingsList = idx.get(queryTerms.get(i)); // next postings list
+            for (Posting p : postingsList) {
+                boolean found = false;
+                for (Posting resultPosting : result) {
+                    ++numOfComparisons;
+                    if (resultPosting.equals(p)) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    result.add(p);
+                }
+            }
+        }
+
+        List<Integer> docIds = qr.getDocIds();
+        for (Posting p : result) {
+            docIds.add(p.getId());
+        }
+
+        qr.setNumOfComparisons(numOfComparisons);
+
+        Long endTime = System.currentTimeMillis();
+        qr.setRunTime((endTime - startTime) / 1000L);
+
         return qr;
     }
 
