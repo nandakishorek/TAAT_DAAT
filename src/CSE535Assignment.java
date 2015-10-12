@@ -238,17 +238,29 @@ class QueryResult {
     private int numOfComparisons;
     private long runTime; // in seconds
     private List<Integer> docIds;
+    private int numCompWtOptimzn;
 
     public QueryResult() {
         this.numOfComparisons = 0;
         this.runTime = 0L;
         this.docIds = new ArrayList<Integer>();
+        this.numCompWtOptimzn = 0;
     }
 
-    public QueryResult(int numOfComparisons, long runTime, List<Integer> docIds) {
+    public QueryResult(int numOfComparisons, long runTime, List<Integer> docIds, int numCompWtOptimz) {
         this.numOfComparisons = numOfComparisons;
         this.runTime = runTime;
         this.docIds = docIds;
+        this.numCompWtOptimzn = numCompWtOptimz;
+        ;
+    }
+
+    public int getNumCompWtOptimzn() {
+        return numCompWtOptimzn;
+    }
+
+    public void setNumCompWtOptimzn(int numCompWtOptimzn) {
+        this.numCompWtOptimzn = numCompWtOptimzn;
     }
 
     public int getNumOfComparisons() {
@@ -474,26 +486,18 @@ class DocIdOrderedIndex implements Index {
         QueryResult qr = new QueryResult();
 
         int numOfComparisons = 0;
-       /* List<Posting> result = new LinkedList<Posting>();
-        List<Posting> firstPostingsList = idx.get(queryTerms.get(0)); // assign
-                                                                      // result
-                                                                      // to
-                                                                      // first
-                                                                      // posting
-                                                                      // list
-        if (firstPostingsList != null) {
-            result.addAll(firstPostingsList);
-        }*/
-        
+
+        // initial result list, find the postings list for the first queryTerm
+        // which has one
         int start = 0;
         List<Posting> firstPostingsList = null;
-        while(firstPostingsList == null && start < queryTerms.size()){
+        while (firstPostingsList == null && start < queryTerms.size()) {
             firstPostingsList = idx.get(queryTerms.get(start++));
         }
-        
+
         List<Posting> result = new LinkedList<Posting>();
         result.addAll(firstPostingsList); // assign result to first posting list
-        
+
         for (int i = start; i < queryTerms.size(); ++i) {
             List<Posting> intResult = new LinkedList<Posting>();
             List<Posting> posting2 = idx.get(queryTerms.get(i));
@@ -514,12 +518,12 @@ class DocIdOrderedIndex implements Index {
                 ++p1;
                 ++p2;
             }
-            
+
             // add the remaining docs, if any
-            while(p1 < len1) {
+            while (p1 < len1) {
                 intResult.add(result.get(p1++));
             }
-            while(p2 < len2) {
+            while (p2 < len2) {
                 intResult.add(posting2.get(p2++));
             }
 
@@ -533,7 +537,7 @@ class DocIdOrderedIndex implements Index {
         }
 
         qr.setNumOfComparisons(numOfComparisons);
-        
+
         Long endTime = System.currentTimeMillis();
         qr.setRunTime((endTime - startTime) / 1000L);
         return qr;
@@ -686,18 +690,18 @@ class TermFreqOrderedIndex implements Index {
         QueryResult qr = new QueryResult();
 
         int numOfComparisons = 0;
-        List<Posting> result = new LinkedList<Posting>();
-        List<Posting> firstPostingsList = idx.get(queryTerms.get(0)); // assign
-                                                                      // result
-                                                                      // to
-                                                                      // first
-                                                                      // posting
-                                                                      // list
-        if (firstPostingsList != null) {
-            result.addAll(firstPostingsList);
+                
+        // initial result list, find the postings list for the first queryTerm
+        // which has one
+        int start = 0;
+        List<Posting> firstPostingsList = null;
+        while (firstPostingsList == null && start < queryTerms.size()) {
+            firstPostingsList = idx.get(queryTerms.get(start++));
         }
-        
-        for (int i = 1; i < queryTerms.size(); ++i) {
+
+        List<Posting> result = new LinkedList<Posting>();
+        result.addAll(firstPostingsList); // assign result to first posting list
+        for (int i = start; i < queryTerms.size(); ++i) {
             List<Posting> postingsList = idx.get(queryTerms.get(i)); // next
                                                                      // postings
             if (postingsList != null) { // list
