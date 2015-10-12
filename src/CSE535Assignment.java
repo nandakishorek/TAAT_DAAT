@@ -426,7 +426,8 @@ class DocIdOrderedIndex implements Index {
 
             int numOfComparisons = 0;
             List<Posting> result = new LinkedList<Posting>();
-            result.addAll(allPostings.get(0)); // assign result to the shortest postings list
+            result.addAll(allPostings.get(0)); // assign result to the shortest
+                                               // postings list
             for (int i = 1; i < allPostings.size(); ++i) {
                 List<Posting> intResult = new LinkedList<Posting>();
                 List<Posting> posting2 = allPostings.get(i);
@@ -434,7 +435,7 @@ class DocIdOrderedIndex implements Index {
                 int p2 = 0;
                 int len1 = result.size();
                 int len2 = posting2.size();
-                while(p1 < len1 && p2 < len2) {
+                while (p1 < len1 && p2 < len2) {
                     int docId1 = result.get(p1).getId();
                     int docId2 = posting2.get(p2).getId();
                     ++numOfComparisons;
@@ -448,13 +449,13 @@ class DocIdOrderedIndex implements Index {
                         ++p2;
                     }
                 }
-                
+
                 result = intResult;
-                
+
             }
-            
+
             qr.setNumOfComparisons(numOfComparisons);
-            
+
             List<Integer> docIds = qr.getDocIds();
             for (Posting p : result) {
                 docIds.add(p.getId());
@@ -471,9 +472,67 @@ class DocIdOrderedIndex implements Index {
     public QueryResult docAtATimeQueryOr(List<Term> queryTerms) {
         Long startTime = System.currentTimeMillis();
         QueryResult qr = new QueryResult();
+
+        int numOfComparisons = 0;
+       /* List<Posting> result = new LinkedList<Posting>();
+        List<Posting> firstPostingsList = idx.get(queryTerms.get(0)); // assign
+                                                                      // result
+                                                                      // to
+                                                                      // first
+                                                                      // posting
+                                                                      // list
+        if (firstPostingsList != null) {
+            result.addAll(firstPostingsList);
+        }*/
         
+        int start = 0;
+        List<Posting> firstPostingsList = null;
+        while(firstPostingsList == null && start < queryTerms.size()){
+            firstPostingsList = idx.get(queryTerms.get(start++));
+        }
         
+        List<Posting> result = new LinkedList<Posting>();
+        result.addAll(firstPostingsList); // assign result to first posting list
         
+        for (int i = start; i < queryTerms.size(); ++i) {
+            List<Posting> intResult = new LinkedList<Posting>();
+            List<Posting> posting2 = idx.get(queryTerms.get(i));
+            int p1 = 0;
+            int p2 = 0;
+            int len1 = result.size();
+            int len2 = posting2.size();
+            while (p1 < len1 && p2 < len2) {
+                int docId1 = result.get(p1).getId();
+                int docId2 = posting2.get(p2).getId();
+                ++numOfComparisons;
+                if (docId1 == docId2) {
+                    intResult.add(result.get(p1));
+                } else {
+                    intResult.add(result.get(p1));
+                    intResult.add(posting2.get(p2));
+                }
+                ++p1;
+                ++p2;
+            }
+            
+            // add the remaining docs, if any
+            while(p1 < len1) {
+                intResult.add(result.get(p1++));
+            }
+            while(p2 < len2) {
+                intResult.add(posting2.get(p2++));
+            }
+
+            result = intResult;
+
+        }
+
+        List<Integer> docIds = qr.getDocIds();
+        for (Posting p : result) {
+            docIds.add(p.getId());
+        }
+
+        qr.setNumOfComparisons(numOfComparisons);
         
         Long endTime = System.currentTimeMillis();
         qr.setRunTime((endTime - startTime) / 1000L);
@@ -627,23 +686,33 @@ class TermFreqOrderedIndex implements Index {
         QueryResult qr = new QueryResult();
 
         int numOfComparisons = 0;
-        List<Posting> result = idx.get(queryTerms.get(0)); // assign result to
-                                                           // first posting list
+        List<Posting> result = new LinkedList<Posting>();
+        List<Posting> firstPostingsList = idx.get(queryTerms.get(0)); // assign
+                                                                      // result
+                                                                      // to
+                                                                      // first
+                                                                      // posting
+                                                                      // list
+        if (firstPostingsList != null) {
+            result.addAll(firstPostingsList);
+        }
+        
         for (int i = 1; i < queryTerms.size(); ++i) {
             List<Posting> postingsList = idx.get(queryTerms.get(i)); // next
                                                                      // postings
-                                                                     // list
-            for (Posting p : postingsList) {
-                boolean found = false;
-                for (Posting resultPosting : result) {
-                    ++numOfComparisons;
-                    if (resultPosting.equals(p)) {
-                        found = true;
-                        break;
+            if (postingsList != null) { // list
+                for (Posting p : postingsList) {
+                    boolean found = false;
+                    for (Posting resultPosting : result) {
+                        ++numOfComparisons;
+                        if (resultPosting.equals(p)) {
+                            found = true;
+                            break;
+                        }
                     }
-                }
-                if (!found) {
-                    result.add(p);
+                    if (!found) {
+                        result.add(p);
+                    }
                 }
             }
         }
