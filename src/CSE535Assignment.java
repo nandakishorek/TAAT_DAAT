@@ -102,23 +102,25 @@ public class CSE535Assignment {
 
                     // termAtATimeQueryAnd
                     bw.write("termAtATimeQueryAnd " + commaSepQueryTerms + lineSeparator);
-                    QueryResult queryResult = tfOrderedIndex.termAtATimeQueryAnd(queryTermList);
-                    printQueryResult(queryResult, bw);
+                    QueryResult queryResult = tfOrderedIndex.termAtATimeQueryAnd(queryTermList, false);
+                    QueryResult queryResultWtOptzn = tfOrderedIndex.termAtATimeQueryAnd(queryTermList, true);
+                    printQueryResult(queryResult, queryResultWtOptzn.getNumCompWtOptimzn(), bw);
 
                     // termAtATimeQueryOr
                     bw.write("termAtATimeQueryOr " + commaSepQueryTerms + lineSeparator);
-                    queryResult = tfOrderedIndex.termAtATimeQueryOr(queryTermList);
-                    printQueryResult(queryResult, bw);
+                    queryResult = tfOrderedIndex.termAtATimeQueryOr(queryTermList, false);
+                    queryResultWtOptzn = tfOrderedIndex.termAtATimeQueryOr(queryTermList, true);
+                    printQueryResult(queryResult, queryResultWtOptzn.getNumCompWtOptimzn(), bw);
 
                     // docAtATimeQueryAnd
                     bw.write("docAtATimeQueryAnd " + commaSepQueryTerms + lineSeparator);
                     queryResult = docIdOrderedIndex.docAtATimeQueryAnd(queryTermList);
-                    printQueryResult(queryResult, bw);
+                    printQueryResult(queryResult, -1, bw);
 
                     // docAtATimeQueryOr
                     bw.write("docAtATimeQueryOr " + commaSepQueryTerms + lineSeparator);
                     queryResult = docIdOrderedIndex.docAtATimeQueryOr(queryTermList);
-                    printQueryResult(queryResult, bw);
+                    printQueryResult(queryResult, -1, bw);
 
                 }
             } catch (IOException ioe) {
@@ -131,7 +133,8 @@ public class CSE535Assignment {
         }
     }
 
-    public static void printQueryResult(QueryResult queryResult, BufferedWriter bw) throws IOException {
+    public static void printQueryResult(QueryResult queryResult, int numCompOptimzn, BufferedWriter bw)
+            throws IOException {
         String lineSeparator = System.lineSeparator();
         if (queryResult.getDocIds().size() <= 0) {
             // none of the terms were found
@@ -140,6 +143,10 @@ public class CSE535Assignment {
             bw.write(queryResult.getDocIds().size() + " documents are found" + lineSeparator);
             bw.write(queryResult.getNumOfComparisons() + " comparisons are made" + lineSeparator);
             bw.write(queryResult.getRunTime() + " seconds are used" + lineSeparator);
+            if (numCompOptimzn > -1) {
+                bw.write(numCompOptimzn + " comparisons are made with optimization (optional bonus part)"
+                        + lineSeparator);
+            }
 
             Collections.sort(queryResult.getDocIds());
             String[] docIds = new String[queryResult.getDocIds().size()];
@@ -244,7 +251,7 @@ class QueryResult {
         this.numOfComparisons = 0;
         this.runTime = 0L;
         this.docIds = new ArrayList<Integer>();
-        this.numCompWtOptimzn = 0;
+        this.numCompWtOptimzn = -1;
     }
 
     public QueryResult(int numOfComparisons, long runTime, List<Integer> docIds, int numCompWtOptimz) {
@@ -293,9 +300,9 @@ interface Index {
 
     public List<Posting> getPostings(Term term);
 
-    public QueryResult termAtATimeQueryAnd(List<Term> queryTerms);
+    public QueryResult termAtATimeQueryAnd(List<Term> queryTerms, boolean isOptimization);
 
-    public QueryResult termAtATimeQueryOr(List<Term> queryTerms);
+    public QueryResult termAtATimeQueryOr(List<Term> queryTerms, boolean isOptimization);
 
     public QueryResult docAtATimeQueryAnd(List<Term> queryTerms);
 
@@ -388,14 +395,14 @@ class DocIdOrderedIndex implements Index {
     }
 
     @Override
-    public QueryResult termAtATimeQueryAnd(List<Term> queryTerms) {
+    public QueryResult termAtATimeQueryAnd(List<Term> queryTerms, boolean isOptimization) {
         QueryResult qr = new QueryResult();
         // skip
         return qr;
     }
 
     @Override
-    public QueryResult termAtATimeQueryOr(List<Term> queryTerms) {
+    public QueryResult termAtATimeQueryOr(List<Term> queryTerms, boolean isOptimization) {
         QueryResult qr = new QueryResult();
         // skip
         return qr;
@@ -607,7 +614,7 @@ class TermFreqOrderedIndex implements Index {
     }
 
     @Override
-    public QueryResult termAtATimeQueryAnd(List<Term> queryTerms) {
+    public QueryResult termAtATimeQueryAnd(List<Term> queryTerms, boolean isOptimization) {
 
         Long startTime = System.currentTimeMillis();
 
@@ -626,22 +633,25 @@ class TermFreqOrderedIndex implements Index {
         }
 
         if (!termNotFound) {
-            // sort the postings list in increasing order of their sizes
-            Collections.sort(allPostings, new Comparator<List<Posting>>() {
 
-                @Override
-                public int compare(List<Posting> l1, List<Posting> l2) {
-                    int len1 = l1.size();
-                    int len2 = l2.size();
-                    if (len1 < len2) {
-                        return -1;
-                    } else if (len1 > len2) {
-                        return 1;
+            if (isOptimization) {
+                // sort the postings list in increasing order of their sizes
+                Collections.sort(allPostings, new Comparator<List<Posting>>() {
+
+                    @Override
+                    public int compare(List<Posting> l1, List<Posting> l2) {
+                        int len1 = l1.size();
+                        int len2 = l2.size();
+                        if (len1 < len2) {
+                            return -1;
+                        } else if (len1 > len2) {
+                            return 1;
+                        }
+                        return 0;
                     }
-                    return 0;
-                }
 
-            });
+                });
+            }
 
             int numOfComparisons = 0;
             List<Posting> result = new LinkedList<Posting>();
@@ -675,6 +685,9 @@ class TermFreqOrderedIndex implements Index {
             }
 
             qr.setNumOfComparisons(numOfComparisons);
+            if (isOptimization) {
+                qr.setNumCompWtOptimzn(numOfComparisons);
+            }
         }
         Long endTime = System.currentTimeMillis();
         qr.setRunTime((endTime - startTime) / 1000L);
@@ -683,14 +696,14 @@ class TermFreqOrderedIndex implements Index {
     }
 
     @Override
-    public QueryResult termAtATimeQueryOr(List<Term> queryTerms) {
+    public QueryResult termAtATimeQueryOr(List<Term> queryTerms, boolean isOptimization) {
 
         Long startTime = System.currentTimeMillis();
 
         QueryResult qr = new QueryResult();
 
         int numOfComparisons = 0;
-                
+
         // initial result list, find the postings list for the first queryTerm
         // which has one
         int start = 0;
@@ -702,9 +715,8 @@ class TermFreqOrderedIndex implements Index {
         List<Posting> result = new LinkedList<Posting>();
         result.addAll(firstPostingsList); // assign result to first posting list
         for (int i = start; i < queryTerms.size(); ++i) {
-            List<Posting> postingsList = idx.get(queryTerms.get(i)); // next
-                                                                     // postings
-            if (postingsList != null) { // list
+            List<Posting> postingsList = idx.get(queryTerms.get(i));
+            if (postingsList != null) {
                 for (Posting p : postingsList) {
                     boolean found = false;
                     for (Posting resultPosting : result) {
