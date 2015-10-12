@@ -702,43 +702,69 @@ class TermFreqOrderedIndex implements Index {
 
         QueryResult qr = new QueryResult();
 
-        int numOfComparisons = 0;
-
-        // initial result list, find the postings list for the first queryTerm
-        // which has one
-        int start = 0;
-        List<Posting> firstPostingsList = null;
-        while (firstPostingsList == null && start < queryTerms.size()) {
-            firstPostingsList = idx.get(queryTerms.get(start++));
-        }
-
-        List<Posting> result = new LinkedList<Posting>();
-        result.addAll(firstPostingsList); // assign result to first posting list
-        for (int i = start; i < queryTerms.size(); ++i) {
-            List<Posting> postingsList = idx.get(queryTerms.get(i));
-            if (postingsList != null) {
-                for (Posting p : postingsList) {
-                    boolean found = false;
-                    for (Posting resultPosting : result) {
-                        ++numOfComparisons;
-                        if (resultPosting.equals(p)) {
-                            found = true;
-                            break;
-                        }
-                    }
-                    if (!found) {
-                        result.add(p);
-                    }
-                }
+        List<List<Posting>> allPostings = new ArrayList<List<Posting>>(queryTerms.size());
+        for (Term t : queryTerms) {
+            List<Posting> postingForT = idx.get(t);
+            if (postingForT != null) {
+                allPostings.add(postingForT);
             }
         }
 
-        List<Integer> docIds = qr.getDocIds();
-        for (Posting p : result) {
-            docIds.add(p.getId());
-        }
+        if (allPostings.size() > 0) {
+            
+            if (isOptimization) {
+                // sort the postings list in decreasing order of their sizes
+                Collections.sort(allPostings, new Comparator<List<Posting>>() {
 
-        qr.setNumOfComparisons(numOfComparisons);
+                    @Override
+                    public int compare(List<Posting> l1, List<Posting> l2) {
+                        int len1 = l1.size();
+                        int len2 = l2.size();
+                        if (len1 < len2) {
+                            return 1;
+                        } else if (len1 > len2) {
+                            return -1;
+                        }
+                        return 0;
+                    }
+
+                });
+            }
+                                    
+            int numOfComparisons = 0;
+            List<Posting> result = new LinkedList<Posting>();
+            result.addAll(allPostings.get(0)); // assign result to first posting
+                                              // list
+            for (int i = 1; i < allPostings.size(); ++i) {
+                List<Posting> postingsList = allPostings.get(i);
+                if (postingsList != null) {
+                    for (Posting p : postingsList) {
+                        boolean found = false;
+                        for (Posting resultPosting : result) {
+                            ++numOfComparisons;
+                            if (resultPosting.equals(p)) {
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (!found) {
+                            result.add(p);
+                        }
+                    }
+                }
+            }
+
+            List<Integer> docIds = qr.getDocIds();
+            for (Posting p : result) {
+                docIds.add(p.getId());
+            }
+
+            qr.setNumOfComparisons(numOfComparisons);
+            if (isOptimization) {
+                qr.setNumCompWtOptimzn(numOfComparisons);
+            }
+
+        }
 
         Long endTime = System.currentTimeMillis();
         qr.setRunTime((endTime - startTime) / 1000L);
