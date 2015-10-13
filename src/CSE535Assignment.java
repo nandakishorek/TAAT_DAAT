@@ -742,19 +742,17 @@ class TermFreqOrderedIndex implements Index {
                                               // list
             for (int i = 1; i < allPostings.size(); ++i) {
                 List<Posting> postingsList = allPostings.get(i);
-                if (postingsList != null) {
-                    for (Posting p : postingsList) {
-                        boolean found = false;
-                        for (Posting resultPosting : result) {
-                            ++numOfComparisons;
-                            if (resultPosting.equals(p)) {
-                                found = true;
-                                break;
-                            }
+                for (Posting p : postingsList) {
+                    boolean found = false;
+                    for (Posting resultPosting : result) {
+                        ++numOfComparisons;
+                        if (resultPosting.equals(p)) {
+                            found = true;
+                            break;
                         }
-                        if (!found) {
-                            result.add(p);
-                        }
+                    }
+                    if (!found) {
+                        result.add(p);
                     }
                 }
             }
