@@ -504,42 +504,50 @@ class DocIdOrderedIndex implements Index {
         }
 
         if (allPostings.size() > 0) {
-            List<Posting> result = new LinkedList<Posting>();
-            result.addAll(allPostings.get(0)); // assign result to first posting
-                                               // list
+            
+            // sort the postings list in increasing order of their sizes
+            Collections.sort(allPostings, new Comparator<List<Posting>>() {
 
-            int numOfComparisons = 0;
-            for (int i = 1; i < allPostings.size(); ++i) {
-                List<Posting> intResult = new LinkedList<Posting>();
-                List<Posting> posting2 = allPostings.get(i);
-                int p1 = 0;
-                int p2 = 0;
-                int len1 = result.size();
-                int len2 = posting2.size();
-                while (p1 < len1 && p2 < len2) {
-                    int docId1 = result.get(p1).getId();
-                    int docId2 = posting2.get(p2).getId();
-                    ++numOfComparisons;
-                    if (docId1 == docId2) {
-                        intResult.add(result.get(p1));
-                    } else {
-                        intResult.add(result.get(p1));
-                        intResult.add(posting2.get(p2));
+                @Override
+                public int compare(List<Posting> l1, List<Posting> l2) {
+                    int len1 = l1.size();
+                    int len2 = l2.size();
+                    if (len1 < len2) {
+                        return -1;
+                    } else if (len1 > len2) {
+                        return 1;
                     }
-                    ++p1;
-                    ++p2;
+                    return 0;
                 }
 
-                // add the remaining docs, if any
-                while (p1 < len1) {
-                    intResult.add(result.get(p1++));
+            });
+            
+            
+            int numOfComparisons = 0;
+            List<Posting> result = new LinkedList<Posting>();
+            
+            int[] indices = new int[allPostings.size()];
+            int end = 0; // this will be set to number of postings list, when all postings list have been traversed 
+            while (end < allPostings.size()) {
+                for (int i = 0; i < indices.length; ++i) {
+                    if (indices[i] < allPostings.get(i).size()) {
+                        Posting p1 = allPostings.get(i).get(indices[i]);
+                        int j = i + 1;
+                        while (j < indices.length && indices[j] < allPostings.get(j).size()) {
+                            Posting p2 = allPostings.get(j).get(indices[j]);
+                            ++numOfComparisons;
+                            if (p1.getId() >= p2.getId()) {
+                                indices[j] += 1;
+                            }
+                            ++j;
+                        }
+                        result.add(p1);
+                        indices[i] += 1;
+                        if (indices[i] >= allPostings.get(i).size()) {
+                            ++end;
+                        }
+                    }
                 }
-                while (p2 < len2) {
-                    intResult.add(posting2.get(p2++));
-                }
-
-                result = intResult;
-
             }
 
             List<Integer> docIds = qr.getDocIds();
