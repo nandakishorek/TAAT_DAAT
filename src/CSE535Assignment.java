@@ -495,6 +495,7 @@ class DocIdOrderedIndex implements Index {
         Long startTime = System.currentTimeMillis();
         QueryResult qr = new QueryResult();
 
+        // get the postings lists for the query terms
         List<List<Posting>> allPostings = new ArrayList<List<Posting>>(queryTerms.size());
         for (Term t : queryTerms) {
             List<Posting> postingForT = idx.get(t);
@@ -503,51 +504,48 @@ class DocIdOrderedIndex implements Index {
             }
         }
 
-        if (allPostings.size() > 0) {
-            
-            // sort the postings list in increasing order of their sizes
-            Collections.sort(allPostings, new Comparator<List<Posting>>() {
-
-                @Override
-                public int compare(List<Posting> l1, List<Posting> l2) {
-                    int len1 = l1.size();
-                    int len2 = l2.size();
-                    if (len1 < len2) {
-                        return -1;
-                    } else if (len1 > len2) {
-                        return 1;
-                    }
-                    return 0;
-                }
-
-            });
-            
-            
+        // if there is atleast one non-empty postings list start the merge process
+        if (allPostings.size() > 0) {        
+                       
             int numOfComparisons = 0;
             List<Posting> result = new LinkedList<Posting>();
             
             int[] indices = new int[allPostings.size()];
             int end = 0; // this will be set to number of postings list, when all postings list have been traversed 
             while (end < allPostings.size()) {
+                
+                // Find the docId for the current iteration, that will be the least docId among all
+                // the docId's at the beginning of every postings list
+                Posting minPosting = new Posting(Integer.MAX_VALUE, 0); // initialize min to some large value
                 for (int i = 0; i < indices.length; ++i) {
                     if (indices[i] < allPostings.get(i).size()) {
-                        Posting p1 = allPostings.get(i).get(indices[i]);
-                        int j = i + 1;
-                        while (j < indices.length && indices[j] < allPostings.get(j).size()) {
-                            Posting p2 = allPostings.get(j).get(indices[j]);
-                            ++numOfComparisons;
-                            if (p1.getId() >= p2.getId()) {
-                                indices[j] += 1;
-                            }
-                            ++j;
-                        }
-                        result.add(p1);
-                        indices[i] += 1;
-                        if (indices[i] >= allPostings.get(i).size()) {
-                            ++end;
+                        Posting p = allPostings.get(i).get(indices[i]);
+                        if (p.getId() < minPosting.getId()) {
+                            minPosting = p;
                         }
                     }
                 }
+                
+                // traverse all the lists concurrently
+                for (int i = 0; i < indices.length; ++i) {
+                    if (indices[i] < allPostings.get(i).size()) {
+                        Posting p2 = allPostings.get(i).get(indices[i]);
+                        ++numOfComparisons;
+                        while(p2.getId() <= minPosting.getId()){
+                            ++numOfComparisons;
+                            indices[i] += 1;
+                            if (indices[i] >= allPostings.get(i).size()) {
+                                ++end;
+                                break;
+                            }
+                            p2 = allPostings.get(i).get(indices[i]);
+                        }
+                    }
+                }
+                
+                // we have incremented the relevant pointers for each postings list
+                // now add the current docId to the result.
+                result.add(minPosting);
             }
 
             List<Integer> docIds = qr.getDocIds();
@@ -574,6 +572,12 @@ class TermFreqOrderedIndex implements Index {
         parseIndexFile(indexFileName);
     }
 
+    /**
+     * TODO: put the parsing logic into a single method. Abstract Index class? The only change is order according to the strategy
+     * 
+     * @param indexFileName
+     * 
+     */
     private void parseIndexFile(String indexFileName) {
         try (BufferedReader br = new BufferedReader(new FileReader(indexFileName))) {
             String line;
