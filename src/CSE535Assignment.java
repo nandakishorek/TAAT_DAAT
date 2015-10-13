@@ -102,24 +102,24 @@ public class CSE535Assignment {
 
                     // termAtATimeQueryAnd
                     bw.write("termAtATimeQueryAnd " + commaSepQueryTerms + lineSeparator);
-                    QueryResult queryResult = tfOrderedIndex.termAtATimeQueryAnd(queryTermList, false);
-                    QueryResult queryResultWtOptzn = tfOrderedIndex.termAtATimeQueryAnd(queryTermList, true);
+                    QueryResult queryResult = tfOrderedIndex.conjuctiveQuery(queryTermList, false);
+                    QueryResult queryResultWtOptzn = tfOrderedIndex.conjuctiveQuery(queryTermList, true);
                     printQueryResult(queryResult, queryResultWtOptzn.getNumCompWtOptimzn(), bw);
 
                     // termAtATimeQueryOr
                     bw.write("termAtATimeQueryOr " + commaSepQueryTerms + lineSeparator);
-                    queryResult = tfOrderedIndex.termAtATimeQueryOr(queryTermList, false);
-                    queryResultWtOptzn = tfOrderedIndex.termAtATimeQueryOr(queryTermList, true);
+                    queryResult = tfOrderedIndex.disjunctiveQuery(queryTermList, false);
+                    queryResultWtOptzn = tfOrderedIndex.disjunctiveQuery(queryTermList, true);
                     printQueryResult(queryResult, queryResultWtOptzn.getNumCompWtOptimzn(), bw);
 
                     // docAtATimeQueryAnd
                     bw.write("docAtATimeQueryAnd " + commaSepQueryTerms + lineSeparator);
-                    queryResult = docIdOrderedIndex.docAtATimeQueryAnd(queryTermList);
+                    queryResult = docIdOrderedIndex.conjuctiveQuery(queryTermList, false);
                     printQueryResult(queryResult, -1, bw);
 
                     // docAtATimeQueryOr
                     bw.write("docAtATimeQueryOr " + commaSepQueryTerms + lineSeparator);
-                    queryResult = docIdOrderedIndex.docAtATimeQueryOr(queryTermList);
+                    queryResult = docIdOrderedIndex.disjunctiveQuery(queryTermList, false);
                     printQueryResult(queryResult, -1, bw);
 
                 }
@@ -300,13 +300,10 @@ interface Index {
 
     public List<Posting> getPostings(Term term);
 
-    public QueryResult termAtATimeQueryAnd(List<Term> queryTerms, boolean isOptimization);
+    public QueryResult conjuctiveQuery(List<Term> queryTerms, boolean isOptimization);
 
-    public QueryResult termAtATimeQueryOr(List<Term> queryTerms, boolean isOptimization);
+    public QueryResult disjunctiveQuery(List<Term> queryTerms, boolean isOptimization);
 
-    public QueryResult docAtATimeQueryAnd(List<Term> queryTerms);
-
-    public QueryResult docAtATimeQueryOr(List<Term> queryTerms);
 }
 
 class DocIdOrderedIndex implements Index {
@@ -394,22 +391,13 @@ class DocIdOrderedIndex implements Index {
         return idx.get(term);
     }
 
+    /**
+     * DAAT AND
+     * @param queryTerms
+     * @return
+     */
     @Override
-    public QueryResult termAtATimeQueryAnd(List<Term> queryTerms, boolean isOptimization) {
-        QueryResult qr = new QueryResult();
-        // skip
-        return qr;
-    }
-
-    @Override
-    public QueryResult termAtATimeQueryOr(List<Term> queryTerms, boolean isOptimization) {
-        QueryResult qr = new QueryResult();
-        // skip
-        return qr;
-    }
-
-    @Override
-    public QueryResult docAtATimeQueryAnd(List<Term> queryTerms) {
+    public QueryResult conjuctiveQuery(List<Term> queryTerms, boolean isOptimization) {
         Long startTime = System.currentTimeMillis();
         QueryResult qr = new QueryResult();
         boolean termNotFound = false;
@@ -490,8 +478,14 @@ class DocIdOrderedIndex implements Index {
         return qr;
     }
 
+    /**
+     * DAAT OR
+     * @param queryTerms
+     * @param isOptimization
+     * @return
+     */
     @Override
-    public QueryResult docAtATimeQueryOr(List<Term> queryTerms) {
+    public QueryResult disjunctiveQuery(List<Term> queryTerms, boolean isOptimization) {
         Long startTime = System.currentTimeMillis();
         QueryResult qr = new QueryResult();
 
@@ -630,8 +624,15 @@ class TermFreqOrderedIndex implements Index {
         return idx.get(term);
     }
 
+    /**
+     * TAAT AND
+     * 
+     * @param queryTerms
+     * @param isOptimization
+     * @return
+     */
     @Override
-    public QueryResult termAtATimeQueryAnd(List<Term> queryTerms, boolean isOptimization) {
+    public QueryResult conjuctiveQuery(List<Term> queryTerms, boolean isOptimization) {
 
         Long startTime = System.currentTimeMillis();
 
@@ -712,8 +713,14 @@ class TermFreqOrderedIndex implements Index {
         return qr;
     }
 
+    /**
+     * TAAT OR
+     * @param queryTerms
+     * @param isOptimization
+     * @return
+     */
     @Override
-    public QueryResult termAtATimeQueryOr(List<Term> queryTerms, boolean isOptimization) {
+    public QueryResult disjunctiveQuery(List<Term> queryTerms, boolean isOptimization) {
 
         Long startTime = System.currentTimeMillis();
 
@@ -783,24 +790,6 @@ class TermFreqOrderedIndex implements Index {
 
         Long endTime = System.currentTimeMillis();
         qr.setRunTime((endTime - startTime) / 1000L);
-
-        return qr;
-    }
-
-    @Override
-    public QueryResult docAtATimeQueryAnd(List<Term> queryTerms) {
-        QueryResult qr = new QueryResult();
-
-        // skip
-
-        return qr;
-    }
-
-    @Override
-    public QueryResult docAtATimeQueryOr(List<Term> queryTerms) {
-        QueryResult qr = new QueryResult();
-
-        // skip
 
         return qr;
     }
