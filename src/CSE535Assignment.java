@@ -445,32 +445,35 @@ class DocIdOrderedIndex implements Index {
 
             int numOfComparisons = 0;
             List<Posting> result = new LinkedList<Posting>();
-            result.addAll(allPostings.get(0)); // assign result to the shortest
-                                               // postings list
-            for (int i = 1; i < allPostings.size(); ++i) {
-                List<Posting> intResult = new LinkedList<Posting>();
-                List<Posting> posting2 = allPostings.get(i);
-                int p1 = 0;
-                int p2 = 0;
-                int len1 = result.size();
-                int len2 = posting2.size();
-                while (p1 < len1 && p2 < len2) {
-                    int docId1 = result.get(p1).getId();
-                    int docId2 = posting2.get(p2).getId();
-                    ++numOfComparisons;
-                    if (docId1 == docId2) {
-                        intResult.add(result.get(p1));
-                        ++p1;
-                        ++p2;
-                    } else if (docId1 < docId2) {
-                        ++p1;
+            
+            int[] indices = new int[allPostings.size()];
+            boolean empty = false; // set when we reach the end of any postings list
+            while(!empty) {
+                int equalCount = 0;
+                for (int i = 0; i < indices.length - 1; ++i) {
+                    if (indices[i] < allPostings.get(i).size() && indices[i + 1] < allPostings.get(i + 1).size()) {
+                        Posting p1 = allPostings.get(i).get(indices[i]);
+                        Posting p2 = allPostings.get(i + 1).get(indices[i + 1]);
+                        ++numOfComparisons;
+                        if (p1.getId() == p2.getId()) {
+                            ++equalCount;
+                        } else if (p1.getId() < p2.getId()) {
+                            indices[i] += 1;
+                        } else {
+                            indices[i+1] += 1;
+                        }
                     } else {
-                        ++p2;
+                        empty = true;
                     }
                 }
-
-                result = intResult;
-
+                
+                if (equalCount == indices.length - 1) {
+                    // the doc should have been found in all the postings list
+                    result.add(allPostings.get(0).get(indices[0]));
+                    for (int i = 0; i < indices.length; ++i) {
+                        indices[i] += 1;
+                    }
+                }
             }
 
             qr.setNumOfComparisons(numOfComparisons);
@@ -492,59 +495,61 @@ class DocIdOrderedIndex implements Index {
         Long startTime = System.currentTimeMillis();
         QueryResult qr = new QueryResult();
 
-        int numOfComparisons = 0;
-
-        // initial result list, find the postings list for the first queryTerm
-        // which has one
-        int start = 0;
-        List<Posting> firstPostingsList = null;
-        while (firstPostingsList == null && start < queryTerms.size()) {
-            firstPostingsList = idx.get(queryTerms.get(start++));
+        List<List<Posting>> allPostings = new ArrayList<List<Posting>>(queryTerms.size());
+        for (Term t : queryTerms) {
+            List<Posting> postingForT = idx.get(t);
+            if (postingForT != null) {
+                allPostings.add(postingForT);
+            }
         }
 
-        List<Posting> result = new LinkedList<Posting>();
-        result.addAll(firstPostingsList); // assign result to first posting list
+        if (allPostings.size() > 0) {
+            List<Posting> result = new LinkedList<Posting>();
+            result.addAll(allPostings.get(0)); // assign result to first posting
+                                               // list
 
-        for (int i = start; i < queryTerms.size(); ++i) {
-            List<Posting> intResult = new LinkedList<Posting>();
-            List<Posting> posting2 = idx.get(queryTerms.get(i));
-            int p1 = 0;
-            int p2 = 0;
-            int len1 = result.size();
-            int len2 = posting2.size();
-            while (p1 < len1 && p2 < len2) {
-                int docId1 = result.get(p1).getId();
-                int docId2 = posting2.get(p2).getId();
-                ++numOfComparisons;
-                if (docId1 == docId2) {
-                    intResult.add(result.get(p1));
-                } else {
-                    intResult.add(result.get(p1));
-                    intResult.add(posting2.get(p2));
+            int numOfComparisons = 0;
+            for (int i = 1; i < allPostings.size(); ++i) {
+                List<Posting> intResult = new LinkedList<Posting>();
+                List<Posting> posting2 = allPostings.get(i);
+                int p1 = 0;
+                int p2 = 0;
+                int len1 = result.size();
+                int len2 = posting2.size();
+                while (p1 < len1 && p2 < len2) {
+                    int docId1 = result.get(p1).getId();
+                    int docId2 = posting2.get(p2).getId();
+                    ++numOfComparisons;
+                    if (docId1 == docId2) {
+                        intResult.add(result.get(p1));
+                    } else {
+                        intResult.add(result.get(p1));
+                        intResult.add(posting2.get(p2));
+                    }
+                    ++p1;
+                    ++p2;
                 }
-                ++p1;
-                ++p2;
+
+                // add the remaining docs, if any
+                while (p1 < len1) {
+                    intResult.add(result.get(p1++));
+                }
+                while (p2 < len2) {
+                    intResult.add(posting2.get(p2++));
+                }
+
+                result = intResult;
+
             }
 
-            // add the remaining docs, if any
-            while (p1 < len1) {
-                intResult.add(result.get(p1++));
-            }
-            while (p2 < len2) {
-                intResult.add(posting2.get(p2++));
+            List<Integer> docIds = qr.getDocIds();
+            for (Posting p : result) {
+                docIds.add(p.getId());
             }
 
-            result = intResult;
-
+            qr.setNumOfComparisons(numOfComparisons);
         }
-
-        List<Integer> docIds = qr.getDocIds();
-        for (Posting p : result) {
-            docIds.add(p.getId());
-        }
-
-        qr.setNumOfComparisons(numOfComparisons);
-
+        
         Long endTime = System.currentTimeMillis();
         qr.setRunTime((endTime - startTime) / 1000L);
         return qr;
