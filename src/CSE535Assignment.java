@@ -165,7 +165,7 @@ public class CSE535Assignment {
             bw.write("terms not found" + lineSeparator);
         } else {
             bw.write(docIdList.size() + " documents are found" + lineSeparator);
-            bw.write(queryResult.getNumOfComparisons() + " comparisons are made" + lineSeparator);
+            bw.write(queryResult.getNumOfComparisons() + " comparisions are made" + lineSeparator);
             bw.write(queryResult.getRunTime() + " seconds are used" + lineSeparator);
             if (numCompOptimzn > -1) {
                 bw.write(numCompOptimzn + " comparisons are made with optimization (optional bonus part)"
