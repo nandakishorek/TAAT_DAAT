@@ -115,24 +115,24 @@ public class CSE535Assignment {
                     String commaSepQueryTerms = toCommaSeparatedString(queryTerms);
 
                     // termAtATimeQueryAnd
-                    bw.write("termAtATimeQueryAnd " + commaSepQueryTerms + lineSeparator);
+                    bw.write("FUNCTION: termAtATimeQueryAnd " + commaSepQueryTerms + lineSeparator);
                     QueryResult queryResult = tfOrderedIndex.conjuctiveQuery(queryTermList, false);
                     QueryResult queryResultWtOptzn = tfOrderedIndex.conjuctiveQuery(queryTermList, true);
                     printQueryResult(queryResult, queryResultWtOptzn.getNumCompWtOptimzn(), bw);
 
                     // termAtATimeQueryOr
-                    bw.write("termAtATimeQueryOr " + commaSepQueryTerms + lineSeparator);
+                    bw.write("FUNCTION: termAtATimeQueryOr " + commaSepQueryTerms + lineSeparator);
                     queryResult = tfOrderedIndex.disjunctiveQuery(queryTermList, false);
                     queryResultWtOptzn = tfOrderedIndex.disjunctiveQuery(queryTermList, true);
                     printQueryResult(queryResult, queryResultWtOptzn.getNumCompWtOptimzn(), bw);
 
                     // docAtATimeQueryAnd
-                    bw.write("docAtATimeQueryAnd " + commaSepQueryTerms + lineSeparator);
+                    bw.write("FUNCTION: docAtATimeQueryAnd " + commaSepQueryTerms + lineSeparator);
                     queryResult = docIdOrderedIndex.conjuctiveQuery(queryTermList, false);
                     printQueryResult(queryResult, -1, bw);
 
                     // docAtATimeQueryOr
-                    bw.write("docAtATimeQueryOr " + commaSepQueryTerms + lineSeparator);
+                    bw.write("FUNCTION: docAtATimeQueryOr " + commaSepQueryTerms + lineSeparator);
                     queryResult = docIdOrderedIndex.disjunctiveQuery(queryTermList, false);
                     printQueryResult(queryResult, -1, bw);
 
