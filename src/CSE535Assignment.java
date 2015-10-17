@@ -28,12 +28,20 @@ public class CSE535Assignment {
             return;
         }
 
-        Index docIdOrderedIndex = new DocIdOrderedIndex(args[0]);
-        Index tfOrderedIndex = new TermFreqOrderedIndex(args[0]);
+        // read the index into mem
+        Index docIdOrderedIndex = new DocIdOrderedIndex(args[0]); // for DAAT strategy
+        Index tfOrderedIndex = new TermFreqOrderedIndex(args[0]); // for TAAT strategy
 
         outputToLog(docIdOrderedIndex, tfOrderedIndex, args);
     }
 
+    /**
+     *  Method to print the output of the computations to the log file
+     *  
+     * @param docIdOrderedIndex
+     * @param tfOrderedIndex
+     * @param args
+     */
     public static void outputToLog(Index docIdOrderedIndex, Index tfOrderedIndex, String... args) {
 
         String lineSeparator = System.lineSeparator();
@@ -63,8 +71,11 @@ public class CSE535Assignment {
                     for (String queryTerm : queryTerms) {
                         bw.write("FUNCTION: getPostings " + queryTerm + lineSeparator);
                         Term qt = new Term(queryTerm, 0);
+                        // get the postings list for the query term
                         List<Posting> docIndexPL = docIdOrderedIndex.getPostings(qt);
                         List<Posting> tfIndexPl = tfOrderedIndex.getPostings(qt);
+                        
+                        // output the postings list only if the term is found
                         if (docIndexPL != null) {
                             bw.write("Ordered by doc IDs:");
                             i = 0;
@@ -133,6 +144,15 @@ public class CSE535Assignment {
         }
     }
 
+    
+    /**
+     * Method to print the result of the query - could be AND or OR
+     *  
+     * @param queryResult   result of the query
+     * @param numCompOptimzn   the number of comparisons when optimization is turned on
+     * @param bw   handle to the output file writer
+     * @throws IOException
+     */
     public static void printQueryResult(QueryResult queryResult, int numCompOptimzn, BufferedWriter bw)
             throws IOException {
         String lineSeparator = System.lineSeparator();
@@ -158,11 +178,19 @@ public class CSE535Assignment {
         }
     }
 
+    /**
+     * Method to convert the string array to a comma separated string
+     * 
+     * @param strArray
+     * @return
+     */
     public static String toCommaSeparatedString(String[] strArray) {
         StringBuilder sb = new StringBuilder();
         int i = 0;
         for (String str : strArray) {
             sb.append(str);
+            
+            // do not append comma in the end
             if (i != strArray.length - 1) {
                 sb.append(", ");
             }
@@ -173,7 +201,10 @@ public class CSE535Assignment {
 }
 
 class Posting {
+    // id of the document
     private int id;
+    
+    // frequency of the term within this document
     private int termFreq;
 
     public Posting(int id, int termFreq) {
@@ -207,7 +238,10 @@ class Posting {
 }
 
 class Term {
+    // string representation of the term
     private String termStr;
+    
+    // the length of the postings list for this term
     private int postingSize;
 
     public Term(String termStr, int postingSize) {
@@ -259,7 +293,6 @@ class QueryResult {
         this.runTime = runTime;
         this.docIds = docIds;
         this.numCompWtOptimzn = numCompWtOptimz;
-        ;
     }
 
     public int getNumCompWtOptimzn() {
@@ -306,8 +339,15 @@ interface Index {
 
 }
 
+/**
+ * index for DAAT strategy
+ * 
+ * @author kishore
+ *
+ */
 class DocIdOrderedIndex implements Index {
 
+    // the dictionary
     private Map<Term, List<Posting>> idx;
 
     public DocIdOrderedIndex(String indexFileName) {
@@ -316,9 +356,16 @@ class DocIdOrderedIndex implements Index {
         parseIndexFile(indexFileName);
     }
 
+    /**
+     * Method to read the idx file into memory
+     * 
+     * @param indexFileName
+     */
     private void parseIndexFile(String indexFileName) {
         try (BufferedReader br = new BufferedReader(new FileReader(indexFileName))) {
             String line;
+            
+            // read the file line by line
             while ((line = br.readLine()) != null) {
                 int cIndex = line.indexOf("\\c");
                 int mIndex = line.indexOf("\\m");
@@ -347,6 +394,7 @@ class DocIdOrderedIndex implements Index {
                     }
                 }
 
+                // put the term and its postings list into the dictionary 
                 idx.put(term, pList);
             }
         } catch (FileNotFoundException e) {
@@ -357,6 +405,9 @@ class DocIdOrderedIndex implements Index {
         }
     }
 
+    /** 
+     * Method to the get the top 'k' terms according to the non-decreasing length of their postings list
+     */
     @Override
     public List<Term> getTopK(int k) {
 
@@ -401,6 +452,8 @@ class DocIdOrderedIndex implements Index {
         Long startTime = System.currentTimeMillis();
         QueryResult qr = new QueryResult();
         boolean termNotFound = false;
+        
+        // get the postings lists related to the query terms
         List<List<Posting>> allPostings = new ArrayList<List<Posting>>(queryTerms.size());
         for (Term t : queryTerms) {
             List<Posting> postingForT = idx.get(t);
@@ -412,6 +465,7 @@ class DocIdOrderedIndex implements Index {
             }
         }
 
+        // since we are performing a conjuctive query, if one of the terms was not found then, we say 'terms not found'
         if (!termNotFound) {
 
             // sort the postings list in increasing order of their sizes
@@ -472,6 +526,7 @@ class DocIdOrderedIndex implements Index {
             }
         }
 
+        // measure the time spent on this operation
         Long endTime = System.currentTimeMillis();
         qr.setRunTime((endTime - startTime) / 1000L);
 
@@ -498,7 +553,7 @@ class DocIdOrderedIndex implements Index {
             }
         }
 
-        // if there is atleast one non-empty postings list start the merge process
+        // if there is at least one non-empty postings list start the merge process
         if (allPostings.size() > 0) {        
                        
             int numOfComparisons = 0;
@@ -508,12 +563,14 @@ class DocIdOrderedIndex implements Index {
             int end = 0; // this will be set to number of postings list, when all postings list have been traversed 
             while (end < allPostings.size()) {
                 
+                // The alignment operation - 
                 // Find the docId for the current iteration, that will be the least docId among all
                 // the docId's at the beginning of every postings list
                 Posting minPosting = new Posting(Integer.MAX_VALUE, 0); // initialize min to some large value
                 for (int i = 0; i < indices.length; ++i) {
                     if (indices[i] < allPostings.get(i).size()) {
                         Posting p = allPostings.get(i).get(indices[i]);
+                        ++numOfComparisons;
                         if (p.getId() < minPosting.getId()) {
                             minPosting = p;
                         }
@@ -550,15 +607,22 @@ class DocIdOrderedIndex implements Index {
             qr.setNumOfComparisons(numOfComparisons);
         }
         
+        // measure the time spent on this operation
         Long endTime = System.currentTimeMillis();
         qr.setRunTime((endTime - startTime) / 1000L);
         return qr;
     }
 
 }
-
+/**
+ * index for TAAT strategy
+ * 
+ * @author kishore
+ *
+ */
 class TermFreqOrderedIndex implements Index {
 
+    // the dictionary
     private Map<Term, List<Posting>> idx;
 
     public TermFreqOrderedIndex(String indexFileName) {
@@ -567,6 +631,8 @@ class TermFreqOrderedIndex implements Index {
     }
 
     /**
+     * Method to read the idx file into memory
+     * 
      * TODO: put the parsing logic into a single method. Abstract Index class? The only change is order according to the strategy
      * 
      * @param indexFileName
@@ -575,6 +641,7 @@ class TermFreqOrderedIndex implements Index {
     private void parseIndexFile(String indexFileName) {
         try (BufferedReader br = new BufferedReader(new FileReader(indexFileName))) {
             String line;
+            // read the idx file line by line
             while ((line = br.readLine()) != null) {
                 int cIndex = line.indexOf("\\c");
                 int mIndex = line.indexOf("\\m");
@@ -602,6 +669,8 @@ class TermFreqOrderedIndex implements Index {
                         pList.add(i, p);
                     }
                 }
+                
+                // put the term and its postings list into the dictionary
                 idx.put(term, pList);
             }
         } catch (FileNotFoundException e) {
@@ -638,6 +707,7 @@ class TermFreqOrderedIndex implements Index {
 
         QueryResult qr = new QueryResult();
 
+        // get the postings lists related to the query terms
         boolean termNotFound = false;
         List<List<Posting>> allPostings = new ArrayList<List<Posting>>(queryTerms.size());
         for (Term t : queryTerms) {
@@ -681,7 +751,7 @@ class TermFreqOrderedIndex implements Index {
                                                                   // result
                 List<Posting> p2 = allPostings.get(i); // next postings list
                 while (resultIter.hasNext()) {
-                    // check if the current docid is present in p2
+                    // check if the current docId is present in p2
                     Posting po = resultIter.next();
                     int j;
                     for (j = 0; j < p2.size(); ++j) {
@@ -707,6 +777,7 @@ class TermFreqOrderedIndex implements Index {
                 qr.setNumCompWtOptimzn(numOfComparisons);
             }
         }
+        // measure the time spent on this operation
         Long endTime = System.currentTimeMillis();
         qr.setRunTime((endTime - startTime) / 1000L);
 
@@ -726,6 +797,7 @@ class TermFreqOrderedIndex implements Index {
 
         QueryResult qr = new QueryResult();
 
+        // get the postings lists related to the query term
         List<List<Posting>> allPostings = new ArrayList<List<Posting>>(queryTerms.size());
         for (Term t : queryTerms) {
             List<Posting> postingForT = idx.get(t);
@@ -761,6 +833,7 @@ class TermFreqOrderedIndex implements Index {
                                               // list
             for (int i = 1; i < allPostings.size(); ++i) {
                 List<Posting> postingsList = allPostings.get(i);
+                // compare each docId in the current postings list to the docId's in the intermediate result 
                 for (Posting p : postingsList) {
                     boolean found = false;
                     for (Posting resultPosting : result) {
@@ -771,6 +844,8 @@ class TermFreqOrderedIndex implements Index {
                         }
                     }
                     if (!found) {
+                        // the current docId is not present in the intermediate result
+                        // so add it to the intermediate result
                         result.add(p);
                     }
                 }
@@ -788,6 +863,7 @@ class TermFreqOrderedIndex implements Index {
 
         }
 
+        // measure the time spent on this operation
         Long endTime = System.currentTimeMillis();
         qr.setRunTime((endTime - startTime) / 1000L);
 
