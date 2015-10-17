@@ -156,11 +156,12 @@ public class CSE535Assignment {
     public static void printQueryResult(QueryResult queryResult, int numCompOptimzn, BufferedWriter bw)
             throws IOException {
         String lineSeparator = System.lineSeparator();
-        if (queryResult.getDocIds().size() <= 0) {
+        List<Integer> docIdList = queryResult.getDocIds(); 
+        if (docIdList == null) {
             // none of the terms were found
             bw.write("terms not found" + lineSeparator);
         } else {
-            bw.write(queryResult.getDocIds().size() + " documents are found" + lineSeparator);
+            bw.write(docIdList.size() + " documents are found" + lineSeparator);
             bw.write(queryResult.getNumOfComparisons() + " comparisons are made" + lineSeparator);
             bw.write(queryResult.getRunTime() + " seconds are used" + lineSeparator);
             if (numCompOptimzn > -1) {
@@ -168,10 +169,10 @@ public class CSE535Assignment {
                         + lineSeparator);
             }
 
-            Collections.sort(queryResult.getDocIds());
+            Collections.sort(docIdList);
             String[] docIds = new String[queryResult.getDocIds().size()];
             for (int i = 0; i < docIds.length; ++i) {
-                docIds[i] = queryResult.getDocIds().get(i).toString();
+                docIds[i] = docIdList.get(i).toString();
             }
 
             bw.write("Result " + toCommaSeparatedString(docIds) + lineSeparator);
@@ -284,8 +285,9 @@ class QueryResult {
     public QueryResult() {
         this.numOfComparisons = 0;
         this.runTime = 0L;
-        this.docIds = new ArrayList<Integer>();
         this.numCompWtOptimzn = -1;
+        // do not initialize docIds. This is to differentiate between
+        // 0 docs and terms not found
     }
 
     public QueryResult(int numOfComparisons, long runTime, List<Integer> docIds, int numCompWtOptimz) {
@@ -462,6 +464,7 @@ class DocIdOrderedIndex implements Index {
             } else {
                 // one of the terms was not found. So return an empty result.
                 termNotFound = true;
+                break;
             }
         }
 
@@ -520,10 +523,11 @@ class DocIdOrderedIndex implements Index {
 
             qr.setNumOfComparisons(numOfComparisons);
 
-            List<Integer> docIds = qr.getDocIds();
+            List<Integer> docIds = new ArrayList<Integer>(result.size());
             for (Posting p : result) {
                 docIds.add(p.getId());
             }
+            qr.setDocIds(docIds);
         }
 
         // measure the time spent on this operation
@@ -599,10 +603,11 @@ class DocIdOrderedIndex implements Index {
                 result.add(minPosting);
             }
 
-            List<Integer> docIds = qr.getDocIds();
+            List<Integer> docIds = new ArrayList<Integer>(result.size());
             for (Posting p : result) {
                 docIds.add(p.getId());
             }
+            qr.setDocIds(docIds);
 
             qr.setNumOfComparisons(numOfComparisons);
         }
@@ -717,6 +722,7 @@ class TermFreqOrderedIndex implements Index {
             } else {
                 // one of the terms was not found. So return an empty result.
                 termNotFound = true;
+                break;
             }
         }
 
@@ -767,10 +773,11 @@ class TermFreqOrderedIndex implements Index {
                 }
             }
 
-            List<Integer> docIds = qr.getDocIds();
+            List<Integer> docIds = new ArrayList<Integer>(result.size());
             for (Posting p : result) {
                 docIds.add(p.getId());
             }
+            qr.setDocIds(docIds);
 
             qr.setNumOfComparisons(numOfComparisons);
             if (isOptimization) {
@@ -851,10 +858,11 @@ class TermFreqOrderedIndex implements Index {
                 }
             }
 
-            List<Integer> docIds = qr.getDocIds();
+            List<Integer> docIds = new ArrayList<Integer>(result.size());
             for (Posting p : result) {
                 docIds.add(p.getId());
             }
+            qr.setDocIds(docIds);
 
             qr.setNumOfComparisons(numOfComparisons);
             if (isOptimization) {
