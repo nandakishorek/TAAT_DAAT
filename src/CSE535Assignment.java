@@ -16,6 +16,9 @@ import java.util.Map;
 public class CSE535Assignment {
 
     /**
+     * Name - Nandakishore Krishna
+     * UBIT - NANDAKIS
+     * email - NANDAKIS@BUFFALO.EDU
      * 
      * @param args
      *            4 command line arguments args[0] - index file args[1] - log
