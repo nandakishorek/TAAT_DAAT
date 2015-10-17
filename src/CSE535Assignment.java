@@ -178,7 +178,7 @@ public class CSE535Assignment {
                 docIds[i] = docIdList.get(i).toString();
             }
 
-            bw.write("Result " + toCommaSeparatedString(docIds) + lineSeparator);
+            bw.write("Result: " + toCommaSeparatedString(docIds) + lineSeparator);
         }
     }
 
