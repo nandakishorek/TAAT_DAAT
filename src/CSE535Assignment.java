@@ -166,7 +166,7 @@ public class CSE535Assignment {
         } else {
             bw.write(docIdList.size() + " documents are found" + lineSeparator);
             bw.write(queryResult.getNumOfComparisons() + " comparisions are made" + lineSeparator);
-            bw.write(queryResult.getRunTime() + " seconds are used" + lineSeparator);
+            bw.write((queryResult.getRunTime() / 1000.00f)+ " seconds are used" + lineSeparator);
             if (numCompOptimzn > -1) {
                 bw.write(numCompOptimzn + " comparisons are made with optimization (optional bonus part)"
                         + lineSeparator);
@@ -535,7 +535,7 @@ class DocIdOrderedIndex implements Index {
 
         // measure the time spent on this operation
         Long endTime = System.currentTimeMillis();
-        qr.setRunTime((endTime - startTime) / 1000L);
+        qr.setRunTime(endTime - startTime);
 
         return qr;
     }
@@ -617,7 +617,7 @@ class DocIdOrderedIndex implements Index {
         
         // measure the time spent on this operation
         Long endTime = System.currentTimeMillis();
-        qr.setRunTime((endTime - startTime) / 1000L);
+        qr.setRunTime(endTime - startTime);
         return qr;
     }
 
@@ -789,7 +789,7 @@ class TermFreqOrderedIndex implements Index {
         }
         // measure the time spent on this operation
         Long endTime = System.currentTimeMillis();
-        qr.setRunTime((endTime - startTime) / 1000L);
+        qr.setRunTime(endTime - startTime);
 
         return qr;
     }
@@ -876,7 +876,7 @@ class TermFreqOrderedIndex implements Index {
 
         // measure the time spent on this operation
         Long endTime = System.currentTimeMillis();
-        qr.setRunTime((endTime - startTime) / 1000L);
+        qr.setRunTime(endTime - startTime);
 
         return qr;
     }
